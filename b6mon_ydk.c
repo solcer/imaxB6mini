@@ -1,4 +1,3 @@
-//compile icin:  cc b6mon.c -o b6mon $(pkg-config --cflags --libs libudev) -lm -std=c99  -lpaho-mqtt3c
 /* Copyright © 2016, Martin Herkt <lachs0r@srsfckn.biz>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -30,31 +29,11 @@
 #include "MQTTClient.h"
 
 #define ADDRESS     "tcp://192.168.1.195:1883"
-#define CLIENTID    "imaxB6mini"
-#define TOPIC       "seyyar/sensor/sicaklik" //"imaxB6mini"
-#define PAYLOAD     "1"
+#define CLIENTID    "ExampleClientPub"
+#define TOPIC       "imaxB6mini"
+#define PAYLOAD     "Hello World!"
 #define QOS         1
 #define TIMEOUT     10000L
-
-void publish(MQTTClient client, char* topic, char* payload) {
-    MQTTClient_message pubmsg = MQTTClient_message_initializer;
-    pubmsg.payload = payload;
-    pubmsg.payloadlen = strlen(pubmsg.payload);
-    pubmsg.qos = 2;
-    pubmsg.retained = 0;
-    MQTTClient_deliveryToken token;
-    MQTTClient_publishMessage(client, topic, &pubmsg, &token);
-    MQTTClient_waitForCompletion(client, token, 1000L);
-    printf("Message '%s' with delivery token %d delivered\n", payload, token);
-}
-
-int on_message(void *context, char *topicName, int topicLen, MQTTClient_message *message) {
-    char* payload = message->payload;
-    printf("Received operation %s\n", payload);
-    MQTTClient_freeMessage(&message);
-    MQTTClient_free(topicName);
-    return 1;
-}
 
 int find_device(const char *vendor, const char *product)
 {
@@ -121,23 +100,6 @@ typedef struct ChargeInfo {
     double cells[6];
 } ChargeInfo;
 
-#define TOPIC_CHARGEINFO_WORKSTATE	"imaxb6/chargeInfo/workstate"
-#define TOPIC_CHARGEINFO_MAH		"imaxb6/chargeInfo/mAh"
-#define TOPIC_CHARGEINFO_TIME		"imaxb6/chargeInfo/time"
-#define TOPIC_CHARGEINFO_VOLTAGE	"imaxb6/chargeInfo/voltage"
-#define TOPIC_CHARGEINFO_CURRENT	"imaxb6/chargeInfo/current"
-#define TOPIC_CHARGEINFO_TEMPEXT	"imaxb6/chargeInfo/tempEXT"
-#define TOPIC_CHARGEINFO_TEMPINT	"imaxb6/chargeInfo/tempINT"
-#define TOPIC_CHARGEINFO_IMPEDANCEINT	"imaxb6/chargeInfo/impedanceInt"
-#define TOPIC_CHARGEINFO_CELL0		"imaxb6/chargeInfo/cell0"
-#define TOPIC_CHARGEINFO_CELL1		"imaxb6/chargeInfo/cell1"
-#define TOPIC_CHARGEINFO_CELL2		"imaxb6/chargeInfo/cell2"
-#define TOPIC_CHARGEINFO_CELL3		"imaxb6/chargeInfo/cell3"
-#define TOPIC_CHARGEINFO_CELL4		"imaxb6/chargeInfo/cell4"
-#define TOPIC_CHARGEINFO_CELL5		"imaxb6/chargeInfo/cell5"
-
-
-
 typedef struct SysInfo {
     int cycleTime;
     int timeLimitOn;
@@ -151,12 +113,6 @@ typedef struct SysInfo {
     double voltage;
     double cells[6];
 } SysInfo;
-#define TOPIC_SYSINFO_CYCLETIME		"imaxb6/sysInfo/cycleTime"
-#define TOPIC_SYSINFO_TIMELIMITON	"imaxb6/sysInfo/timeLimitOn"
-#define TOPIC_SYSINFO_TIMELIMIT		"imaxb6/sysInfo/timeLimit"
-#define TOPIC_SYSINFO_CYCLETIME		"imaxb6/sysInfo/cycleTime"
-
-
 
 typedef struct DevInfo {
     char core_type[6];
@@ -168,7 +124,6 @@ typedef struct DevInfo {
     float hw_version;
     float rsvd;
 } DevInfo;
-
 
 void command(int fd, unsigned char *buf, char cmdid) {
     unsigned char cmd[7] = { 0x0f, 0x03, cmdid, 0x00, cmdid, 0xff, 0xff };
@@ -271,14 +226,6 @@ void monitor_system(int fd)
     printf("# Time   V     C1    C2    C3    C4    C5    C6\n");
 
     for(;;) {
-        int rc;
-        if ((rc = MQTTClient_connect(client, &conn_opts)) != MQTTCLIENT_SUCCESS) {
-            printf("Failed to connect, return code %d\n", rc);
-            exit(-1);
-        }
-        //create device
-        publish(client, "seyyar/sensor/sicaklik", "1");
-        
         nanosleep(&interval, NULL);
         SysInfo ci = get_sys(fd);
 
@@ -348,35 +295,8 @@ int main(int argc, char **argv)
 
     int opt;
     int o_sys = 0, o_proc = 0;
-    
-    MQTTClient client;
-    MQTTClient_create(&client, ADDRESS, CLIENTID, MQTTCLIENT_PERSISTENCE_NONE, NULL);
-    MQTTClient_connectOptions conn_opts = MQTTClient_connectOptions_initializer;
-    conn_opts.username = "solcer";
-    conn_opts.password = "solcer";
 
-    MQTTClient_setCallbacks(client, NULL, NULL, on_message, NULL);
-    
-     int rc;
-    if ((rc = MQTTClient_connect(client, &conn_opts)) != MQTTCLIENT_SUCCESS) {
-        printf("Failed to connect, return code %d\n", rc);
-        exit(-1);
-    }
-    //create device
-    publish(client, "seyyar/sensor/sicaklik", "1");
-    //set hardware information
-    /*publish(client, "s/us", "110,S123456789,MQTT test model,Rev0.1");
-    //listen for operation
-    MQTTClient_subscribe(client, "s/ds", 0);
-
-    for (;;) {
-        //send temperature measurement
-        publish(client, "s/us", "211,25");
-        sleep(3);
-    }*/
-    
-
- /*   while ((opt = getopt(argc, argv, "sp")) != -1) {
+    while ((opt = getopt(argc, argv, "sp")) != -1) {
         switch(opt) {
             case 'p':
                 o_proc = 1;
@@ -396,7 +316,7 @@ int main(int argc, char **argv)
     } else if (!o_sys && !o_proc) {
         usage(argv[0]);
         return 1;
-    }*/
+    }
 
     /* yeah, really. lazy chinese people :V */
     int fd = find_device("0000", "0001");
@@ -431,15 +351,13 @@ int main(int argc, char **argv)
             fprintf(stderr, "Cell %d: %.2f V\n", i + 1, si.cells[i]);
     }
 
-   /* if (o_sys)
+    if (o_sys)
         monitor_system(fd);
     else if (o_proc)
         monitor_process(fd);
-*/
-      monitor_process(fd);
+
 error:
-    MQTTClient_disconnect(client, 1000);
-    MQTTClient_destroy(&client);
+
     if (fd >= 0)
         close(fd);
 
