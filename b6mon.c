@@ -36,6 +36,10 @@
 #define QOS         1
 #define TIMEOUT     10000L
 
+MQTTClient client;
+MQTTClient_connectOptions conn_opts = MQTTClient_connectOptions_initializer;
+
+
 void publish(MQTTClient client, char* topic, char* payload) {
     MQTTClient_message pubmsg = MQTTClient_message_initializer;
     pubmsg.payload = payload;
@@ -151,10 +155,22 @@ typedef struct SysInfo {
     double voltage;
     double cells[6];
 } SysInfo;
+#define TOPIC_SYSINFO_CELL0		"imaxb6/sysInfo/cell0"
+#define TOPIC_SYSINFO_CELL1		"imaxb6/sysInfo/cell1"
+#define TOPIC_SYSINFO_CELL2		"imaxb6/sysInfo/cell2"
+#define TOPIC_SYSINFO_CELL3		"imaxb6/sysInfo/cell3"
+#define TOPIC_SYSINFO_CELL4		"imaxb6/sysInfo/cell4"
+#define TOPIC_SYSINFO_CELL5		"imaxb6/sysInfo/cell5"
+#define TOPIC_SYSINFO_TEMPLIMIT		"imaxb6/sysInfo/tempLimit"
+#define TOPIC_SYSINFO_INDCLOW		"imaxb6/sysInfo/inDCLow"
+#define TOPIC_SYSINFO_SYSBUZZ		"imaxb6/sysInfo/sysBuzz"
+#define TOPIC_SYSINFO_KEYBUZZ		"imaxb6/sysInfo/keyBuzz"
 #define TOPIC_SYSINFO_CYCLETIME		"imaxb6/sysInfo/cycleTime"
 #define TOPIC_SYSINFO_TIMELIMITON	"imaxb6/sysInfo/timeLimitOn"
 #define TOPIC_SYSINFO_TIMELIMIT		"imaxb6/sysInfo/timeLimit"
-#define TOPIC_SYSINFO_CYCLETIME		"imaxb6/sysInfo/cycleTime"
+#define TOPIC_SYSINFO_CAPLIMITON	"imaxb6/sysInfo/capLimitOn"
+#define TOPIC_SYSINFO_CAPLIMIT		"imaxb6/sysInfo/capLimit"
+#define TOPIC_SYSINFO_VOLTAGE		"imaxb6/sysInfo/voltage"
 
 
 
@@ -168,7 +184,18 @@ typedef struct DevInfo {
     float hw_version;
     float rsvd;
 } DevInfo;
-
+#define TOPIC_DEVINFO_HWVERSION		"imaxb6/devInfo/hwVersion"
+#define TOPIC_DEVINFO_SWVERSION		"imaxb6/devInfo/swVersion"
+#define TOPIC_DEVINFO_LANGUAGEID	"imaxb6/devInfo/languageId"
+#define TOPIC_DEVINFO_CUSTOMERID	"imaxb6/devInfo/customerId"
+#define TOPIC_DEVINFO_ISENCRYPT		"imaxb6/devInfo/isEncrypt"
+#define TOPIC_DEVINFO_UPGRADETYPE	"imaxb6/devInfo/upgradeType"
+#define TOPIC_DEVINFO_CORETYPE0		"imaxb6/devInfo/coreType0"
+#define TOPIC_DEVINFO_CORETYPE1		"imaxb6/devInfo/coreType1"
+#define TOPIC_DEVINFO_CORETYPE2		"imaxb6/devInfo/coreType2"
+#define TOPIC_DEVINFO_CORETYPE3		"imaxb6/devInfo/coreType3"
+#define TOPIC_DEVINFO_CORETYPE4		"imaxb6/devInfo/coreType4"
+#define TOPIC_DEVINFO_CORETYPE5		"imaxb6/devInfo/coreType5"
 
 void command(int fd, unsigned char *buf, char cmdid) {
     unsigned char cmd[7] = { 0x0f, 0x03, cmdid, 0x00, cmdid, 0xff, 0xff };
@@ -264,6 +291,7 @@ double difftime_ms(struct timespec t1, struct timespec t2)
 
 void monitor_system(int fd)
 {
+    char * yazi;
     struct timespec interval = { 0, 150000000 }, t1, t2;
     clock_gettime(CLOCK_MONOTONIC, &t1);
 
@@ -276,9 +304,6 @@ void monitor_system(int fd)
             printf("Failed to connect, return code %d\n", rc);
             exit(-1);
         }
-        //create device
-        publish(client, "seyyar/sensor/sicaklik", "1");
-        
         nanosleep(&interval, NULL);
         SysInfo ci = get_sys(fd);
 
@@ -289,7 +314,62 @@ void monitor_system(int fd)
         for (int i = 0; i < 6; i++) {
             printf(" %-5.3f", ci.cells[i] > 2.0 ? ci.cells[i] : 0);
         }
-
+/*
+#define TOPIC_SYSINFO_CELL0		"imaxb6/sysInfo/cell0"
+#define TOPIC_SYSINFO_CELL1		"imaxb6/sysInfo/cell1"
+#define TOPIC_SYSINFO_CELL2		"imaxb6/sysInfo/cell2"
+#define TOPIC_SYSINFO_CELL3		"imaxb6/sysInfo/cell3"
+#define TOPIC_SYSINFO_CELL4		"imaxb6/sysInfo/cell4"
+#define TOPIC_SYSINFO_CELL5		"imaxb6/sysInfo/cell5"
+#define TOPIC_SYSINFO_TEMPLIMIT		"imaxb6/sysInfo/tempLimit"
+#define TOPIC_SYSINFO_INDCLOW		"imaxb6/sysInfo/inDCLow"
+#define TOPIC_SYSINFO_SYABUZZ		"imaxb6/sysInfo/sysBuzz"
+#define TOPIC_SYSINFO_KEYBUZZ		"imaxb6/sysInfo/keyBuzz"
+#define TOPIC_SYSINFO_CYCLETIME		"imaxb6/sysInfo/cycleTime"
+#define TOPIC_SYSINFO_TIMELIMITON	"imaxb6/sysInfo/timeLimitOn"
+#define TOPIC_SYSINFO_TIMELIMIT		"imaxb6/sysInfo/timeLimit"
+#define TOPIC_SYSINFO_CAPLIMITON	"imaxb6/sysInfo/capLimitOn"
+#define TOPIC_SYSINFO_CAPLIMIT		"imaxb6/sysInfo/capLimit"
+*/
+        //create device
+        sprintf(yazi,"%d",ci.tempLimit);
+        publish(client, TOPIC_SYSINFO_TEMPLIMIT , yazi);
+        sprintf(yazi,"%.2f",ci.inDClow);
+        publish(client, TOPIC_SYSINFO_INDCLOW , yazi);
+        publish(client, TOPIC_SYSINFO_SYSBUZZ , ci.sysBuzz ? "on" : "off");
+        publish(client, TOPIC_SYSINFO_KEYBUZZ , ci.keyBuzz ? "on" : "off");
+        sprintf(yazi,"%d",ci.cycleTime);
+        publish(client, TOPIC_SYSINFO_CYCLETIME , yazi);
+        publish(client, TOPIC_SYSINFO_TIMELIMITON , ci.timeLimitOn ? "on" : "off");
+        sprintf(yazi,"%d",ci.timeLimit);
+        publish(client, TOPIC_SYSINFO_TIMELIMIT , yazi);
+        publish(client, TOPIC_SYSINFO_CAPLIMITON , ci.capLimitOn ? "on" : "off");
+        sprintf(yazi,"%d",ci.capLimit);
+        publish(client, TOPIC_SYSINFO_CAPLIMITON , yazi);
+        sprintf(yazi,"%.2f",ci.voltage);
+        publish(client, TOPIC_SYSINFO_VOLTAGE , yazi);
+        sprintf(yazi,"%.2f",ci.voltage);
+        publish(client, TOPIC_SYSINFO_VOLTAGE , yazi);                
+        sprintf(yazi,"%.2f",ci.cells[0]);
+        publish(client, TOPIC_SYSINFO_CELL0 , yazi);
+        sprintf(yazi,"%.2f",ci.cells[1]);
+        publish(client, TOPIC_SYSINFO_CELL1 , yazi);
+        sprintf(yazi,"%.2f",ci.cells[2]);
+        publish(client, TOPIC_SYSINFO_CELL2 , yazi);
+        sprintf(yazi,"%.2f",ci.cells[3]);
+        publish(client, TOPIC_SYSINFO_CELL3 , yazi);
+        sprintf(yazi,"%.2f",ci.cells[4]);
+        publish(client, TOPIC_SYSINFO_CELL4 , yazi);
+        sprintf(yazi,"%.2f",ci.cells[5]);
+        publish(client, TOPIC_SYSINFO_CELL5 , yazi);
+        /*
+        
+        publish(client, TOPIC_SYSINFO_CELL1 , ci.cells[1]);
+        publish(client, TOPIC_SYSINFO_CELL2 , ci.cells[2]);
+        publish(client, TOPIC_SYSINFO_CELL3 , ci.cells[3]);
+        publish(client, TOPIC_SYSINFO_CELL4 , ci.cells[4]);
+        publish(client, TOPIC_SYSINFO_CELL5 , ci.cells[5]);
+*/
         printf("\n");
         fflush(stdout);
     }
@@ -349,9 +429,9 @@ int main(int argc, char **argv)
     int opt;
     int o_sys = 0, o_proc = 0;
     
-    MQTTClient client;
+    
     MQTTClient_create(&client, ADDRESS, CLIENTID, MQTTCLIENT_PERSISTENCE_NONE, NULL);
-    MQTTClient_connectOptions conn_opts = MQTTClient_connectOptions_initializer;
+    
     conn_opts.username = "solcer";
     conn_opts.password = "solcer";
 
@@ -436,7 +516,8 @@ int main(int argc, char **argv)
     else if (o_proc)
         monitor_process(fd);
 */
-      monitor_process(fd);
+      //monitor_process(fd);
+      monitor_system(fd);
 error:
     MQTTClient_disconnect(client, 1000);
     MQTTClient_destroy(&client);
