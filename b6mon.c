@@ -190,12 +190,8 @@ typedef struct DevInfo {
 #define TOPIC_DEVINFO_CUSTOMERID	"imaxb6/devInfo/customerId"
 #define TOPIC_DEVINFO_ISENCRYPT		"imaxb6/devInfo/isEncrypt"
 #define TOPIC_DEVINFO_UPGRADETYPE	"imaxb6/devInfo/upgradeType"
-#define TOPIC_DEVINFO_CORETYPE0		"imaxb6/devInfo/coreType0"
-#define TOPIC_DEVINFO_CORETYPE1		"imaxb6/devInfo/coreType1"
-#define TOPIC_DEVINFO_CORETYPE2		"imaxb6/devInfo/coreType2"
-#define TOPIC_DEVINFO_CORETYPE3		"imaxb6/devInfo/coreType3"
-#define TOPIC_DEVINFO_CORETYPE4		"imaxb6/devInfo/coreType4"
-#define TOPIC_DEVINFO_CORETYPE5		"imaxb6/devInfo/coreType5"
+#define TOPIC_DEVINFO_CORETYPE		"imaxb6/devInfo/coreType"
+
 
 void command(int fd, unsigned char *buf, char cmdid) {
     unsigned char cmd[7] = { 0x0f, 0x03, cmdid, 0x00, cmdid, 0xff, 0xff };
@@ -377,6 +373,7 @@ void monitor_system(int fd)
 
 void monitor_process(int fd)
 {
+  char *yazi;
     struct timespec interval = { 0, 150000000 }, t1, t2;
     int started = 0;
     clock_gettime(CLOCK_MONOTONIC, &t1);
@@ -401,6 +398,36 @@ void monitor_process(int fd)
             for (int i = 0; i < 6; i++) {
                 printf(" %-5.3f", ci.cells[i] > 2.0 ? ci.cells[i] : 0);
             }
+            sprintf(yazi,"%d",ci.mAh);
+            publish(client, TOPIC_CHARGEINFO_MAH , yazi);
+            sprintf(yazi,"%d",ci.time);
+            publish(client, TOPIC_CHARGEINFO_TIME , yazi);
+            sprintf(yazi,"%-5.3f",ci.voltage);
+            publish(client, TOPIC_CHARGEINFO_VOLTAGE , yazi);
+            sprintf(yazi,"%-5.3f",ci.current);
+            publish(client, TOPIC_CHARGEINFO_CURRENT , yazi);
+            sprintf(yazi,"%d",ci.tempExt);
+            publish(client, TOPIC_CHARGEINFO_TEMPEXT , yazi);
+            sprintf(yazi,"%d",ci.tempInt);
+            publish(client, TOPIC_CHARGEINFO_TEMPEXT , yazi);
+            sprintf(yazi,"%d",ci.impedanceInt);
+            publish(client, TOPIC_CHARGEINFO_IMPEDANCEINT , yazi);
+            
+            sprintf(yazi,"%-5.3f",ci.cells[0]);
+            publish(client, TOPIC_CHARGEINFO_CELL0 , yazi);
+            sprintf(yazi,"%-5.3f",ci.cells[1]);
+            publish(client, TOPIC_CHARGEINFO_CELL1 , yazi);
+            sprintf(yazi,"%-5.3f",ci.cells[2]);
+            publish(client, TOPIC_CHARGEINFO_CELL2 , yazi);
+            sprintf(yazi,"%-5.3f",ci.cells[3]);
+            publish(client, TOPIC_CHARGEINFO_CELL3 , yazi);
+            sprintf(yazi,"%-5.3f",ci.cells[4]);
+            publish(client, TOPIC_CHARGEINFO_CELL4 , yazi);
+            sprintf(yazi,"%-5.3f",ci.cells[5]);
+            publish(client, TOPIC_CHARGEINFO_CELL5 , yazi);
+                        
+                        
+//#define TOPIC_CHARGEINFO_WORKSTATE	"imaxb6/chargeInfo/workstate"
 
             printf("\n");
             fflush(stdout);
@@ -425,9 +452,10 @@ int main(int argc, char **argv)
 {
     extern char *optarg;
     extern int optind, opterr, optopt;
-
+    int started = 0;
     int opt;
     int o_sys = 0, o_proc = 0;
+    char *yazi;
     
     
     MQTTClient_create(&client, ADDRESS, CLIENTID, MQTTCLIENT_PERSISTENCE_NONE, NULL);
@@ -442,42 +470,7 @@ int main(int argc, char **argv)
         printf("Failed to connect, return code %d\n", rc);
         exit(-1);
     }
-    //create device
-    publish(client, "seyyar/sensor/sicaklik", "1");
-    //set hardware information
-    /*publish(client, "s/us", "110,S123456789,MQTT test model,Rev0.1");
-    //listen for operation
-    MQTTClient_subscribe(client, "s/ds", 0);
-
-    for (;;) {
-        //send temperature measurement
-        publish(client, "s/us", "211,25");
-        sleep(3);
-    }*/
     
-
- /*   while ((opt = getopt(argc, argv, "sp")) != -1) {
-        switch(opt) {
-            case 'p':
-                o_proc = 1;
-                break;
-            case 's':
-                o_sys = 1;
-                break;
-            case '?':
-                usage(argv[0]);
-                return 1;
-        }
-    }
-
-    if (o_sys && o_proc) {
-        fprintf(stderr, "%s: -s and -p are mutually exclusive\n", argv[0]);
-        return 1;
-    } else if (!o_sys && !o_proc) {
-        usage(argv[0]);
-        return 1;
-    }*/
-
     /* yeah, really. lazy chinese people :V */
     int fd = find_device("0000", "0001");
 
@@ -485,39 +478,128 @@ int main(int argc, char **argv)
         fputs("Could not find/open an iMAX B6 Mini\n", stderr);
         goto error;
     }
+  for(;;){
+      DevInfo di = get_devinfo(fd);
+      fprintf(stderr, "Found device: core type %s, hw %.2f, sw %.2f\n",
+              di.core_type, di.hw_version, di.sw_version);
+              
+      publish(client, TOPIC_DEVINFO_CORETYPE , di.core_type);
+      sprintf(yazi,"%.2f",di.hw_version);
+      publish(client, TOPIC_DEVINFO_HWVERSION , yazi);
+      sprintf(yazi,"%.2f",di.sw_version);
+      publish(client, TOPIC_DEVINFO_SWVERSION , yazi);
+      
+      SysInfo si = get_sys(fd);
+      fprintf(stderr, "Device settings:\n"
+                      "Cycle time: %d min\n"
+                      "Time limit: %d min (%s) / Capacity limit: %d mAh (%s)\n"
+                      "Key buzz: %s / System buzz: %s\n"
+                      "Low input voltage threshold: %.2f\n"
+                      "Temperature limit: %d °C\n"
+                      "\n"
+                      "Status:\n"
+                      "Voltage: %.2f V\n",
+              si.cycleTime,
+              si.timeLimit, si.timeLimitOn ? "on" : "off",
+              si.capLimit, si.capLimitOn ? "on" : "off",
+              si.keyBuzz ? "on" : "off", si.sysBuzz ? "on" : "off",
+              si.inDClow, si.tempLimit, si.voltage);
+  
+      for (int i = 0; i < 6; i++) {
+          if (si.cells[i] > 2.0)
+              fprintf(stderr, "Cell %d: %.2f V\n", i + 1, si.cells[i]);
+      }
+      sprintf(yazi,"%d",si.tempLimit);
+      publish(client, TOPIC_SYSINFO_TEMPLIMIT , yazi);
+      sprintf(yazi,"%.2f",si.inDClow);
+      publish(client, TOPIC_SYSINFO_INDCLOW , yazi);
+      publish(client, TOPIC_SYSINFO_SYSBUZZ , si.sysBuzz ? "on" : "off");
+      publish(client, TOPIC_SYSINFO_KEYBUZZ , si.keyBuzz ? "on" : "off");
+      sprintf(yazi,"%d",si.cycleTime);
+      publish(client, TOPIC_SYSINFO_CYCLETIME , yazi);
+      publish(client, TOPIC_SYSINFO_TIMELIMITON , si.timeLimitOn ? "on" : "off");
+      sprintf(yazi,"%d",si.timeLimit);
+      publish(client, TOPIC_SYSINFO_TIMELIMIT , yazi);
+      publish(client, TOPIC_SYSINFO_CAPLIMITON , si.capLimitOn ? "on" : "off");
+      sprintf(yazi,"%d",si.capLimit);
+      publish(client, TOPIC_SYSINFO_CAPLIMITON , yazi);
+      sprintf(yazi,"%.2f",si.voltage);
+      publish(client, TOPIC_SYSINFO_VOLTAGE , yazi);
+      sprintf(yazi,"%.2f",si.voltage);
+      publish(client, TOPIC_SYSINFO_VOLTAGE , yazi);                
+      sprintf(yazi,"%.2f",si.cells[0]);
+      publish(client, TOPIC_SYSINFO_CELL0 , yazi);
+      sprintf(yazi,"%.2f",si.cells[1]);
+      publish(client, TOPIC_SYSINFO_CELL1 , yazi);
+      sprintf(yazi,"%.2f",si.cells[2]);
+      publish(client, TOPIC_SYSINFO_CELL2 , yazi);
+      sprintf(yazi,"%.2f",si.cells[3]);
+      publish(client, TOPIC_SYSINFO_CELL3 , yazi);
+      sprintf(yazi,"%.2f",si.cells[4]);
+      publish(client, TOPIC_SYSINFO_CELL4 , yazi);
+      sprintf(yazi,"%.2f",si.cells[5]);
+      publish(client, TOPIC_SYSINFO_CELL5 , yazi);
+      
+      ChargeInfo ci = get_chg(fd);
 
-    DevInfo di = get_devinfo(fd);
-    fprintf(stderr, "Found device: core type %s, hw %.2f, sw %.2f\n",
-            di.core_type, di.hw_version, di.sw_version);
+        if (ci.workState == 1) {
+            started = 1;
+            //clock_gettime(CLOCK_MONOTONIC, &t2);
 
-    SysInfo si = get_sys(fd);
-    fprintf(stderr, "Device settings:\n"
-                    "Cycle time: %d min\n"
-                    "Time limit: %d min (%s) / Capacity limit: %d mAh (%s)\n"
-                    "Key buzz: %s / System buzz: %s\n"
-                    "Low input voltage threshold: %.2f\n"
-                    "Temperature limit: %d °C\n"
-                    "\n"
-                    "Status:\n"
-                    "Voltage: %.2f V\n",
-            si.cycleTime,
-            si.timeLimit, si.timeLimitOn ? "on" : "off",
-            si.capLimit, si.capLimitOn ? "on" : "off",
-            si.keyBuzz ? "on" : "off", si.sysBuzz ? "on" : "off",
-            si.inDClow, si.tempLimit, si.voltage);
+            /*printf("  %-6.1f %-5d %-5.3f %-5.3f %-5d %-5d",
+                   difftime_ms(t1, t2), ci.mAh, ci.voltage, ci.current,
+                   ci.tempExt, ci.tempInt);*/
+            printf("  %-5d %-5.3f %-5.3f %-5d %-5d",
+                   ci.mAh, ci.voltage, ci.current,
+                   ci.tempExt, ci.tempInt);
 
-    for (int i = 0; i < 6; i++) {
-        if (si.cells[i] > 2.0)
-            fprintf(stderr, "Cell %d: %.2f V\n", i + 1, si.cells[i]);
-    }
+            for (int i = 0; i < 6; i++) {
+                printf(" %-5.3f", ci.cells[i] > 2.0 ? ci.cells[i] : 0);
+            }
+            sprintf(yazi,"%d",ci.mAh);
+            publish(client, TOPIC_CHARGEINFO_MAH , yazi);
+            sprintf(yazi,"%d",ci.time);
+            publish(client, TOPIC_CHARGEINFO_TIME , yazi);
+            sprintf(yazi,"%-5.3f",ci.voltage);
+            publish(client, TOPIC_CHARGEINFO_VOLTAGE , yazi);
+            sprintf(yazi,"%-5.3f",ci.current);
+            publish(client, TOPIC_CHARGEINFO_CURRENT , yazi);
+            sprintf(yazi,"%d",ci.tempExt);
+            publish(client, TOPIC_CHARGEINFO_TEMPEXT , yazi);
+            sprintf(yazi,"%d",ci.tempInt);
+            publish(client, TOPIC_CHARGEINFO_TEMPEXT , yazi);
+            sprintf(yazi,"%d",ci.impedanceInt);
+            publish(client, TOPIC_CHARGEINFO_IMPEDANCEINT , yazi);
+            
+            sprintf(yazi,"%-5.3f",ci.cells[0]);
+            publish(client, TOPIC_CHARGEINFO_CELL0 , yazi);
+            sprintf(yazi,"%-5.3f",ci.cells[1]);
+            publish(client, TOPIC_CHARGEINFO_CELL1 , yazi);
+            sprintf(yazi,"%-5.3f",ci.cells[2]);
+            publish(client, TOPIC_CHARGEINFO_CELL2 , yazi);
+            sprintf(yazi,"%-5.3f",ci.cells[3]);
+            publish(client, TOPIC_CHARGEINFO_CELL3 , yazi);
+            sprintf(yazi,"%-5.3f",ci.cells[4]);
+            publish(client, TOPIC_CHARGEINFO_CELL4 , yazi);
+            sprintf(yazi,"%-5.3f",ci.cells[5]);
+            publish(client, TOPIC_CHARGEINFO_CELL5 , yazi);
+                        
+                        
+//#define TOPIC_CHARGEINFO_WORKSTATE	"imaxb6/chargeInfo/workstate"
 
+            printf("\n");
+            fflush(stdout);
+        } else if (!started) {
+            //clock_gettime(CLOCK_MONOTONIC, &t1);
+        }
+  }//for(;;)
    /* if (o_sys)
         monitor_system(fd);
     else if (o_proc)
         monitor_process(fd);
 */
-      //monitor_process(fd);
-      monitor_system(fd);
+      monitor_process(fd);
+      //monitor_system(fd);
 error:
     MQTTClient_disconnect(client, 1000);
     MQTTClient_destroy(&client);
