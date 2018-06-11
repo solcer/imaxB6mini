@@ -49,7 +49,7 @@ void publish(MQTTClient client, char* topic, char* payload) {
     MQTTClient_deliveryToken token;
     MQTTClient_publishMessage(client, topic, &pubmsg, &token);
     MQTTClient_waitForCompletion(client, token, 1000L);
-    printf("Message '%s' with delivery token %d delivered\n", payload, token);
+    //printf("Message '%s' with delivery token %d delivered\n", payload, token);
 }
 
 int on_message(void *context, char *topicName, int topicLen, MQTTClient_message *message) {
@@ -343,8 +343,6 @@ void monitor_system(int fd)
         sprintf(yazi,"%d",ci.capLimit);
         publish(client, TOPIC_SYSINFO_CAPLIMITON , yazi);
         sprintf(yazi,"%.2f",ci.voltage);
-        publish(client, TOPIC_SYSINFO_VOLTAGE , yazi);
-        sprintf(yazi,"%.2f",ci.voltage);
         publish(client, TOPIC_SYSINFO_VOLTAGE , yazi);                
         sprintf(yazi,"%.2f",ci.cells[0]);
         publish(client, TOPIC_SYSINFO_CELL0 , yazi);
@@ -480,7 +478,7 @@ int main(int argc, char **argv)
     }
   for(;;){
       DevInfo di = get_devinfo(fd);
-      fprintf(stderr, "Found device: core type %s, hw %.2f, sw %.2f\n",
+      fprintf(stderr, "\nFound device: core type %s, hw %.2f, sw %.2f\n",
               di.core_type, di.hw_version, di.sw_version);
               
       publish(client, TOPIC_DEVINFO_CORETYPE , di.core_type);
@@ -509,6 +507,8 @@ int main(int argc, char **argv)
           if (si.cells[i] > 2.0)
               fprintf(stderr, "Cell %d: %.2f V\n", i + 1, si.cells[i]);
       }
+      //printf("\n");
+      
       sprintf(yazi,"%d",si.tempLimit);
       publish(client, TOPIC_SYSINFO_TEMPLIMIT , yazi);
       sprintf(yazi,"%.2f",si.inDClow);
@@ -522,9 +522,7 @@ int main(int argc, char **argv)
       publish(client, TOPIC_SYSINFO_TIMELIMIT , yazi);
       publish(client, TOPIC_SYSINFO_CAPLIMITON , si.capLimitOn ? "on" : "off");
       sprintf(yazi,"%d",si.capLimit);
-      publish(client, TOPIC_SYSINFO_CAPLIMITON , yazi);
-      sprintf(yazi,"%.2f",si.voltage);
-      publish(client, TOPIC_SYSINFO_VOLTAGE , yazi);
+      publish(client, TOPIC_SYSINFO_CAPLIMIT , yazi);
       sprintf(yazi,"%.2f",si.voltage);
       publish(client, TOPIC_SYSINFO_VOLTAGE , yazi);                
       sprintf(yazi,"%.2f",si.cells[0]);
